@@ -131,6 +131,8 @@ ________________________________________________________________________________
 
 install.packages("corrplot")
 install.packages("caret")
+library(rpart)
+library(rpart.plot)
 library(corrplot)
 library(caret)
 
@@ -157,3 +159,35 @@ readyData$ProductNum <- existingprod$ProductNum
 existingtotal <- merge(readyData,existingprod,by="ProductNum")
 
 head(existingtotal)
+
+existingtot <- existingtotal [,-14]
+head(existingtot)
+
+str(existingtot)
+summary(existingtot)
+
+existingtot$BestSellersRank <- NULL
+
+correxistingtot <- cor(existingtot) 
+
+correxistingtot
+
+corrplot(correxistingtot)
+
+tree<- rpart(Volume~., data=existingtot, cp=0.001)
+rpart.plot(tree)
+
+str(existingtot)
+hist(existingtot$x5StarReviews)
+
+tree<- rpart(Volume~., data=existingtot, cp=.0001)
+
+rpart.plot(tree)
+
+
+existingtot$x5StarReviews <- NULL
+existingtot$x1StarReviews <- NULL
+existingtot$x3StarReviews <- NULL
+existingtot$x3StarReviews <- NULL
+
+
