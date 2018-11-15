@@ -130,20 +130,30 @@ ________________________________________________________________________________
 
 
 install.packages("corrplot")
-
+install.packages("caret")
 library(corrplot)
+library(caret)
+
+
+existingprod <- read.csv("existingprod.csv",header=TRUE) 
+summary(existingprod)
+str(existingprod)
+
+
+existingproddummy <- dummyVars("~ProductType", data = existingprod)
+
+existingproddummy
+
+readyData <- data.frame(predict(existingproddummy, newdata = existingprod))
+
+readyData
+
+existingprod$ProductType.Accessories <- NULL
 
 
 
+readyData$ProductNum <- existingprod$ProductNum
 
+existingtotal <- merge(readyData,existingprod,by="ProductNum")
 
-
-
-
-
-
-
-
-
-
-
+head(existingtotal)
