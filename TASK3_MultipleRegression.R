@@ -11,12 +11,14 @@ getwd()
 #install.packages("caret")
 #install.packages("rpart")
 #install.packages("rpart.plot")
+#install.packages("dplyr")
 
 
 library("rpart")
 library("rpart.plot")
 library("corrplot")
 library("caret")
+library(dplyr)
 
 #importing the existing product dataset
 existingprod <- read.csv("existingprod.csv", header=TRUE, sep=",")
@@ -101,9 +103,11 @@ correxistingprodsintype <- cor(existingprodsintype)
 correxistingprodsintype
 #visualizing the correlation matrix with a heatmap
 corrplot(correxistingprodsintype)
-
+# Visialisation of the decision tree
 tree<- rpart(Volume~., data=existingprodsintype, cp=0.001)
 rpart.plot(tree)
+
+#Afer a deep thougth we have decided to take out the following variables
 
 existingprodsintype$ProductType <- NULL
 existingprodsintype$x1StarReviews <- NULL
@@ -115,6 +119,8 @@ existingprodsintype$ProductDepth <- NULL
 existingprodsintype$ShippingWeight <- NULL
 existingprodsintype$Recommendproduct <- NULL
 head (existingprodsintype)
+
+# We have begin to make the linear regression but we forgot to take out the outliers and to normalize.
 
 set.seed(123)
 existingprodtrainindex <- createDataPartition(
@@ -132,5 +138,68 @@ testexisting  <- existingprodsintype[-existingprodtrainindex,]
 nrow(trainexisting)
 nrow(testexisting)
 
+linearmod <- lm(Volume~., data=trainexisting)
+linearmod
 
+summary(linearmod)
 
+Predictlm <- predict.lm(linearmod, newdata = testexisting)
+
+Predictlm
+
+str(Predictlm)
+
+# Here we identify the outliers
+
+outlier_values <- boxplot.stats(existingprodsintype$Volume)$out
+
+boxplot(existingprodsintype$Volume, main="outlier", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+
+#Here we use a function from a package call dplyr (Pablo's suggestment) to make take out the outliers. The point is that this is a filter and
+#it doesn't delete the rows from the dataset. It creates a new dataset that we call in this case filteroutliers
+
+filteroutliers<-filter(existingprodsintype, Volume!=c(70336,11204))
+
+#We create the partition 
+
+set.seed(123)
+existingprodtrainindex <- createDataPartition(
+  y = filteroutliers$Volume,
+  ## the outcome data are needed
+  p = .75,
+  ## The percentage of data in the
+  ## training set
+  list = FALSE
+)
+
+trainexisting <- filteroutliers[ existingprodtrainindex,]
+testexisting  <- filteroutliers[-existingprodtrainindex,]
+
+nrow(trainexisting)
+nrow(testexisting)
+
+#I check that I don't have outliers
+
+outlier_values <- boxplot.stats(filteroutliers$Volume)$out
+
+boxplot(filteroutliers$Volume, main="outlier", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+
+#We try to normalize
+
+linearmodelnorm<-train(Volume~.,data=filteroutliers,method="lm",
+preProcess=c("center","scale"), metric="RMSE")
+
+linearmodelnorm
+
+#We apply the linear regression
+
+Predictlm <- predict(linearmodelnorm, newdata = testexisting, metric="RMSE")
+
+Predictlm
+
+str(Predictlm)
+head(testexisting)
+?postResample
+postResample(Predictlm, testexisting$Volume)
