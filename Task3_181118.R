@@ -318,8 +318,27 @@ rf300trees <- train(Volume~., data = trainexisting, method = "rf",trControl = tr
 
 rf300trees
 
+#resultrf300<- data.frame(testpred_rf300 <- predict(rf300trees, newdata = testexisting, metric="RMSE"))
+
+#resultrf300<- data.frame(testpred_rf300 <- predict(rf300trees, newdata = testexisting, metric="RMSE"))
+
+#colnames(resultrf300$testpred_rf300....predict.rf300trees..newdata...testexisting..) <- resultrf300$Predictions
+
 testpred_rf300 <- predict(rf300trees, newdata = testexisting, metric="RMSE")
-testpred_rf300
+
+rfpredictions <- testpred_rf300
+rfpredictions
+actual <- testexisting$Volume
+
+plotpredandactual <- plot(predandactual$actual, predandactual$rfpredictions)
+
+predandactual <- data.frame(rfpredictions, actual)
+
+predandactual
+
+predandactual$errors<-predandactual$rfpredictions-predandactual$actual
+
+
 
 postResample(testpred_rf300, testexisting$Volume)
 
@@ -404,3 +423,41 @@ BMG <- train(Volume ~., data = trainexisting, method = "gbm",
                                        tuneLength = 10)
 
 BMG
+
+summary(filteroutliersprueba)
+
+
+hist(filteroutliers$Volume)
+
+# APPLY THE BESTO MODEL (SVM) TO THE NEW PRODUCTS 
+
+newproducts <- read.csv("newprod.csv", header=TRUE, sep=",")
+
+newproducts$Price <- NULL
+newproducts$x5StarReviews <- NULL
+newproducts$x3StarReviews <- NULL
+newproducts$x2StarReviews <- NULL
+newproducts$x1StarReviews <- NULL
+newproducts$NegativeServiceReview <- NULL
+newproducts$Recommendproduct <- NULL
+newproducts$ShippingWeight <- NULL
+newproducts$ProductHeight <- NULL
+newproducts$ProductWidth <- NULL
+newproducts$ProductDepth <- NULL
+newproducts$ProfitMargin <- NULL
+newproducts$ProductType <- NULL
+newproducts$BestSellersRank<-NULL
+newproducts$ProductNum<-NULL
+
+finalPred <- predict(rf300trees, newdata = newproducts, metric="RMSE")
+finalPred
+
+NewProductsAndPredictions <- read.csv("newprod.csv", header=TRUE, sep=",")
+
+NewProductsAndPredictions$VolumeFinalPredictions <- finalPred
+
+NewProductsAndPredictions$Volume<-NULL
+
+write.csv(NewProductsAndPredictions, file="C2.T3output.csv", row.names = TRUE)
+
+
