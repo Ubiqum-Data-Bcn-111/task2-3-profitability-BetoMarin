@@ -14,6 +14,7 @@ getwd()
 #install.packages("plotly")
 #install.packages("randomForest")
 #install.packages("gbm")
+install.packages("plot3D")
 
 
 library("rpart")
@@ -24,6 +25,7 @@ library("dplyr")
 library("plotly")
 library("randomForest")
 library("gbm")
+library("plot3D")
 
 #importing the existing product dataset
 #existingprod <- read.csv("existingproductattributes2017.2.csv", header=TRUE, sep=",")
@@ -461,3 +463,169 @@ NewProductsAndPredictions$Volume<-NULL
 write.csv(NewProductsAndPredictions, file="C2.T3output.csv", row.names = TRUE)
 
 
+#CROSS VALIDATION with 5 folds.
+
+trctrl5F <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+
+#APPLY RANDOM FOREST
+set.seed(123)
+rf300trees5F <- train(Volume~., data = trainexisting, method = "rf",trControl = trctrl5F, metric = "RMSE", ntree = 300)
+
+rf300trees
+
+
+#RMSE      Rsquared  MAE     
+#141.7952  0.956308  84.14825
+#Tuning parameter 'mtry' was held constant at a value of 2
+
+
+#PREDICTION
+
+testpred_rf3005F <- predict(rf300trees5F, newdata = testexisting, metric="RMSE")
+
+rfpredictions5F <- testpred_rf3005F
+rfpredictions5F
+
+#RMSE Rsquared MAE
+postResample(testpred_rf3005F, testexisting$Volume)
+
+#RMSE           Rsquared         MAE 
+#250.5986822   0.8741378 148.6834230 
+
+actual <- testexisting$Volume
+actual
+
+plotpredandactualRF5F <- plot(actual, rfpredictions5F)
+
+
+#this is going to be the dataset with prediction from all models that we run and the actual values of volume
+predandactual5F <- data.frame(rfpredictions5F, actual)
+
+predandactual5F
+
+predandactual5F$errorsRF<-predandactual5F$rfpredictions5F-predandactual5F$actual
+
+predandactual5F
+
+
+#LINEAR REGRESSION 5 FOLDS
+set.seed(123)
+linearmodelnorm5F <- train(Volume~.,data=trainexisting, method="lm",trControl = trctrl5F,
+                         preProcess=c("center","scale"), metric="RMSE")
+
+linearmodelnorm5F
+
+#RMSE     Rsquared   MAE     
+#244.152  0.8435867  146.3453
+
+
+#We apply the linear regression to the test set
+
+Predictlm5F <- predict(linearmodelnorm5F, newdata = testexisting, metric="RMSE")
+Predictlm5F
+
+postResample(Predictlm5F, testexisting$Volume)
+#RMSE    Rsquared         MAE 
+#473.6796236   0.5465173 272.2051194 
+#...una mierda!
+
+plotpredandactualLM5F <- plot(actual, Predictlm5F)
+
+
+#this is going to be the dataset with prediction from all models that we run and the actual values of volume
+
+predandactual5F$lmpredictions5F <-Predictlm5F
+
+predandactual5F
+
+predandactual5F$errorsLM<-predandactual5F$lmpredictions5F-predandactual5F$actual
+
+predandactual5F
+
+#SVM 5 FOLDS
+
+#training the model
+set.seed(123)
+svm_Linear5F <- train(Volume ~., data = trainexisting, method = "svmLinear",
+                       trControl=trctrl5F,
+                       preProcess = c("center", "scale"))
+svm_Linear5F
+
+#RMSE      Rsquared   MAE     
+#238.6472  0.8273626  124.5181
+
+summary(svm_Linear5F)
+
+#test the model
+set.seed(123)
+test_pred_svm5F <- predict(svm_Linear5F, newdata = testexisting, metric="RMSE")
+test_pred_svm5F
+
+postResample(test_pred_svm5F, testexisting$Volume)
+
+#    RMSE      Rsquared         MAE 
+#481.2416698   0.5366656 257.2789558 
+
+predandactual5F$SVMpredictions5F <-test_pred_svm5F
+
+predandactual5F
+
+predandactual5F$errorsSVM<-predandactual5F$SVMpredictions5F-predandactual5F$actual
+
+predandactual5F
+
+
+#TO DO: CHANGE THE PARAMETERS OF THE SVM, BUT BEFORE...STUDY!!! :D
+
+#WE DO THE TEST OF USING THE DATASET WITH 9 VARIABLES TO SHOW THAT 
+#   THE RESULT IS WORST THAN WITH 3 VARIABLES
+set.seed(123)
+RF9VAR5F <- train(Volume~., data = trainexistingprueba, method = "rf",trControl = trctrl5F, metric = "RMSE", ntree = 300)
+
+RF9VAR5F
+
+#mtry  RMSE      Rsquared   MAE      
+#2     205.3254  0.8833918  116.29235
+#5     186.6687  0.8957581  100.09588
+#8     177.4380  0.9009947   94.33494
+#The final value used for the model was mtry = 8.
+set.seed(123)
+RF9VAR5FPREDICTION <- predict(RF9VAR5F, newdata = testexistingprueba, metric="RMSE")
+RF9VAR5FPREDICTION
+
+postResample(RF9VAR5FPREDICTION, testexistingprueba$Volume)
+
+#RESULT RF9VAR5F
+#RMSE    Rsquared         MAE 
+#275.7679863   0.8427763 158.0693951 
+
+
+#RESULTS RF3VAR5F
+#RMSE           Rsquared         MAE 
+#250.5986822   0.8741378 148.6834230 
+
+#therefore we have proved that random forest works better with just 3 variables
+#instead of considering 9 variables (the unuseful variables only bring noise to our model.)
+
+x <- filteroutliers$x4StarReviews
+y <- filteroutliers$PositiveServiceReview
+z <- filteroutliers$Volume
+
+fit <- lm(z ~ x + y)
+
+grid.lines = 78
+x.pred <- seq(min(x), max(x), length.out = grid.lines)
+#x.pred <- seq(min(x), max(x))
+#x.pred
+y.pred <- seq(min(y), max(y), length.out = grid.lines)
+xy <- expand.grid( x = x.pred, y = y.pred)
+z.pred <- matrix(predict(fit, newdata = xy), 
+                 nrow = grid.lines, ncol = grid.lines)
+# fitted points for droplines to surface
+fitpoints <- predict(fit)
+# scatter plot with regression plane
+scatter3D(x, y, z, pch = 18, cex = 2, bty = "g",
+          theta = 40, phi = 10, ticktype = "detailed",
+          xlab = "4STARS", ylab = "POSREV", zlab = "VOLUME",  
+          surf = list(x = x.pred, y = y.pred, z = z.pred,  
+                      facets = NA, fit = fitpoints, main = "LM"))
