@@ -210,6 +210,8 @@ filteroutliers<-filter(existingprodsintype, Volume!=7036 & Volume!=11204)
 
 #We create the partition in training and test sets
 
+
+head(filteroutliers)
 set.seed(123)
 existingprodtrainindex <- createDataPartition(
   y = filteroutliers$Volume,
@@ -232,7 +234,7 @@ boxplot(filteroutliers$Volume, main="outlier", boxwex=0.1)
 mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
 
 #Normalizing and training the LINEAR REGRESSION
-
+set.seed(123)
 linearmodelnorm <- train(Volume~.,data=filteroutliers,method="lm",
                        preProcess=c("center","scale"), metric="RMSE")
 
@@ -243,7 +245,7 @@ linearmodelnorm
 
 
 #We apply the linear regression to the test set
-
+set.seed(123)
 Predictlm <- predict(linearmodelnorm, newdata = testexisting, metric="RMSE")
 Predictlm
 
@@ -258,10 +260,10 @@ postResample(Predictlm, testexisting$Volume)
 str(filteroutliers)
 
 #Apply SVM
-
+set.seed(123)
 trctrlsvm103 <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
 #set.seed(123)
-
+set.seed(123)
 svm_Linear103 <- train(Volume ~., data = trainexisting, method = "svmLinear",
                     trControl=trctrlsvm103,
                     preProcess = c("center", "scale"),
@@ -462,7 +464,24 @@ NewProductsAndPredictions$Volume<-NULL
 
 write.csv(NewProductsAndPredictions, file="C2.T3output.csv", row.names = TRUE)
 
+###20 Noviembre 2018
+head(filteroutliers)
+set.seed(123)
+existingprodtrainindex <- createDataPartition(
+  y = filteroutliers$Volume,
+  ## the outcome data are needed
+  p = .75,
+  ## The percentage of data in the
+  ## training set
+  list = FALSE
+)
 
+trainexisting <- filteroutliers[ existingprodtrainindex,]
+testexisting  <- filteroutliers[-existingprodtrainindex,]
+
+#I check that I don't have outliers
+nrow(trainexisting)
+nrow(testexisting)
 #CROSS VALIDATION with 5 folds.
 
 trctrl5F <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
@@ -489,8 +508,8 @@ rfpredictions5F
 #RMSE Rsquared MAE
 postResample(testpred_rf3005F, testexisting$Volume)
 
-#RMSE           Rsquared         MAE 
-#250.5986822   0.8741378 148.6834230 
+#RMSE    Rsquared         MAE 
+#249.2465430   0.8781915 149.9128494 
 
 actual <- testexisting$Volume
 actual
@@ -515,8 +534,8 @@ linearmodelnorm5F <- train(Volume~.,data=trainexisting, method="lm",trControl = 
 
 linearmodelnorm5F
 
-#RMSE     Rsquared   MAE     
-#244.152  0.8435867  146.3453
+#RMSE      Rsquared   MAE     
+#246.3502  0.8176289  141.1287
 
 
 #We apply the linear regression to the test set
@@ -551,13 +570,13 @@ svm_Linear5F <- train(Volume ~., data = trainexisting, method = "svmLinear",
                        preProcess = c("center", "scale"))
 svm_Linear5F
 
-#RMSE      Rsquared   MAE     
-#238.6472  0.8273626  124.5181
+#RMSE    Rsquared   MAE     
+#241.14  0.8101649  121.1336
+#Tuning parameter 'C' was held constant at a value of 1
 
 summary(svm_Linear5F)
 
 #test the model
-set.seed(123)
 test_pred_svm5F <- predict(svm_Linear5F, newdata = testexisting, metric="RMSE")
 test_pred_svm5F
 
@@ -580,29 +599,31 @@ predandactual5F
 #WE DO THE TEST OF USING THE DATASET WITH 9 VARIABLES TO SHOW THAT 
 #   THE RESULT IS WORST THAN WITH 3 VARIABLES
 set.seed(123)
+trctrl5F <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+
+set.seed(123)
 RF9VAR5F <- train(Volume~., data = trainexistingprueba, method = "rf",trControl = trctrl5F, metric = "RMSE", ntree = 300)
 
 RF9VAR5F
 
 #mtry  RMSE      Rsquared   MAE      
-#2     205.3254  0.8833918  116.29235
-#5     186.6687  0.8957581  100.09588
-#8     177.4380  0.9009947   94.33494
+#2     211.6713  0.8963419  119.33554
+#5     194.0643  0.9186650  100.62006
+#8     181.9683  0.9273106   94.98213
+
+#RMSE was used to select the optimal model using the smallest value.
 #The final value used for the model was mtry = 8.
-set.seed(123)
+
+
 RF9VAR5FPREDICTION <- predict(RF9VAR5F, newdata = testexistingprueba, metric="RMSE")
 RF9VAR5FPREDICTION
 
 postResample(RF9VAR5FPREDICTION, testexistingprueba$Volume)
 
-#RESULT RF9VAR5F
-#RMSE    Rsquared         MAE 
-#275.7679863   0.8427763 158.0693951 
-
 
 #RESULTS RF3VAR5F
-#RMSE           Rsquared         MAE 
-#250.5986822   0.8741378 148.6834230 
+#RMSE    Rsquared         MAE 
+#273.1988763   0.8480071 158.1469259 
 
 #therefore we have proved that random forest works better with just 3 variables
 #instead of considering 9 variables (the unuseful variables only bring noise to our model.)
@@ -625,7 +646,83 @@ z.pred <- matrix(predict(fit, newdata = xy),
 fitpoints <- predict(fit)
 # scatter plot with regression plane
 scatter3D(x, y, z, pch = 18, cex = 2, bty = "g",
-          theta = 40, phi = 10, ticktype = "detailed",
+          theta = 30, phi = -20, ticktype = "detailed",
           xlab = "4STARS", ylab = "POSREV", zlab = "VOLUME",  
           surf = list(x = x.pred, y = y.pred, z = z.pred,  
                       facets = NA, fit = fitpoints, main = "LM"))
+
+#SVMRADIAL 5 FOLDS
+set.seed(123)
+trctrl5F <- trainControl(method = "repeatedcv", number = 5, repeats = 3)
+
+#training the model
+set.seed(123)
+svm_radial5F <- train(Volume ~., data = trainexisting, method = "svmRadial",
+                      trControl=trctrl5F, tuneLength=10,
+                      preProcess = c("center", "scale"))
+svm_radial5F
+
+#Support Vector Machines with Radial Basis Function Kernel 
+#
+#60 samples
+#2 predictor
+#
+#Pre-processing: centered (2), scaled (2) 
+#Resampling: Cross-Validated (5 fold, repeated 3 times) 
+#Summary of sample sizes: 48, 48, 48, 48, 48, 48, ... 
+#Resampling results across tuning parameters:
+#  
+#  C       RMSE      Rsquared   MAE     
+#0.25  304.4547  0.8014496  159.9144
+#0.50  276.6008  0.8291646  148.5885
+#1.00  264.5064  0.8376942  143.9761
+#2.00  255.4845  0.8447417  139.9856
+#4.00  252.4130  0.8399188  136.3747
+#8.00  257.7725  0.8236617  141.8613
+#16.00  271.4505  0.8014997  151.1801
+#32.00  293.1908  0.7814759  161.9557
+#64.00  315.7511  0.7686871  169.4358
+#128.00  331.5912  0.7580524  178.0689
+#
+#Tuning parameter 'sigma' was held constant at a value of 6.185969
+#RMSE was used to select the optimal model using the smallest value.
+#The final values used for the model were sigma = 6.185969 and C = 4.
+
+summary(svm_Linear5F)
+
+#test the model
+test_pred_svmRADIAL5F <- predict(svm_radial5F, newdata = testexisting, metric="RMSE")
+test_pred_svmRADIAL5F
+
+postResample(test_pred_svmRADIAL5F, testexisting$Volume)
+
+
+
+predandactual5F$SVMRADIALpredictions5F <-test_pred_svmRADIAL5F
+
+predandactual5F
+
+predandactual5F$errorsSVMRADIAL<-predandactual5F$SVMRADIALpredictions5F-predandactual5F$actual
+
+colnames(predandactual5F)[6] <- "SVMLINEARpredictions5F"
+
+predandactual5F
+
+colnames(predandactual5F)[7] <- "errorsSVMLINEAR"
+
+predandactual5F[,c(1,3,4,5,6,7,8,9,2)]
+
+#final prediction
+
+NewProductsAndPredictions <- read.csv("newprod.csv", header=TRUE, sep=",")
+
+str(NewProductsAndPredictions)
+
+finalPredRF <- predict(rf300trees5F, newdata = newproducts, metric="RMSE")
+finalPredRF
+
+NewProductsAndPredictions$VolumeFinalPredictions <- finalPredRF
+
+NewProductsAndPredictions$Volume<-NULL
+
+write.csv(NewProductsAndPredictions, file="C2.T3output.csv", row.names = TRUE)
